@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/branding/axi-peaq-banner.svg" alt="AXI x peaq" width="720">
+  <img src="docs/branding/axi-peaq-banner.png" alt="AXI x peaq" width="720">
 </p>
 
 # peaq-integration
