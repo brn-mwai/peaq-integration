@@ -1,22 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 200" width="1200" height="200" role="img" aria-label="AXI x peaq partnership banner">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 240" width="1200" height="240" role="img" aria-label="AXI x peaq partnership banner">
   <title>AXI x peaq</title>
   <defs>
-    <linearGradient id="axi" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="axi" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#18E299"/>
       <stop offset="100%" stop-color="#14B57E"/>
     </linearGradient>
-    <linearGradient id="peaq" x1="0" x2="1" y1="0" y2="0">
+    <linearGradient id="peaq" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#5B5BE6"/>
       <stop offset="100%" stop-color="#7B5BFF"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="200" fill="#FFFFFF"/>
-  <g transform="translate(180, 60) scale(1.6)">
-    <path d="M0 0 L30 50 L0 50 L-30 0 Z" fill="url(#axi)"/>
-    <path d="M50 0 L20 50 L50 50 L80 0 Z" fill="url(#axi)" transform="translate(-25, 0)"/>
-  </g>
-  <text x="500" y="120" font-family="Inter, system-ui, sans-serif" font-size="36" font-weight="300" fill="#9CA3AF" text-anchor="middle">x</text>
-  <g transform="translate(700, 65)" font-family="Inter, system-ui, sans-serif" font-weight="700">
-    <text x="0" y="65" font-size="80" fill="url(#peaq)" letter-spacing="-3">peaq</text>
+  <rect width="1200" height="240" fill="#FFFFFF"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif" font-weight="800" letter-spacing="-3">
+    <text x="180" y="155" font-size="120" fill="url(#axi)">AXI</text>
+    <text x="540" y="148" font-size="64" font-weight="300" fill="#9CA3AF">×</text>
+    <text x="640" y="155" font-size="120" fill="url(#peaq)">peaq</text>
   </g>
 </svg>

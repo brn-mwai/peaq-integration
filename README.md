@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source srcset="docs/branding/axi-peaq-banner.png" type="image/png">
-    <img src="docs/branding/axi-peaq-banner.svg" alt="AXI x peaq" width="640">
-  </picture>
+  <img src="docs/branding/axi-peaq-banner.svg" alt="AXI x peaq" width="720">
 </p>
 
 # peaq-integration
