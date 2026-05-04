@@ -3,6 +3,8 @@ export * from "./did/index.js";
 export * from "./storage/index.js";
 export * from "./rbac/index.js";
 export * from "./anchor/index.js";
+export * from "./idempotency.js";
+export * from "./signers/index.js";
 export { logger } from "./logger.js";
 export type { Logger } from "./logger.js";
 export { env } from "./env.js";

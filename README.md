@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source srcset="docs/branding/axi-peaq-banner.png" type="image/png">
+    <img src="docs/branding/axi-peaq-banner.svg" alt="AXI x peaq" width="640">
+  </picture>
+</p>
+
 # peaq-integration
 
 > Production-grade peaq blockchain integration for AXI Mobility. Anchors fleet operations on peaq, issues + resolves `did:peaq:` identities, and wraps the `peaqDid` / `peaqStorage` / `peaqRbac` pallets behind a small, typed, retry-aware library.

@@ -6,6 +6,7 @@ import type { ISubmittableResult } from "@polkadot/types/types";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { z } from "zod";
 import { logger } from "../logger.js";
+import type { ExternalSigner } from "../signers/types.js";
 import type { PeaqNetworkConfig } from "./networks.js";
 import { retryWithBackoff } from "./retry.js";
 
@@ -13,6 +14,7 @@ export interface SubstrateClientConfig {
   network: PeaqNetworkConfig;
   wssUrl?: string;
   signerMnemonic?: string;
+  externalSigner?: ExternalSigner;
   retryMaxAttempts?: number;
   retryBaseMs?: number;
   retryMaxMs?: number;
@@ -34,7 +36,8 @@ const mnemonicSchema = z
 export class SubstrateClient {
   private api: ApiPromise | null = null;
   private signer: KeyringPair | null = null;
-  private readonly cfg: Required<SubstrateClientConfig>;
+  private readonly external: ExternalSigner | null;
+  private readonly cfg: Omit<Required<SubstrateClientConfig>, "externalSigner">;
 
   constructor(cfg: SubstrateClientConfig) {
     this.cfg = {
@@ -45,6 +48,7 @@ export class SubstrateClient {
       retryBaseMs: cfg.retryBaseMs ?? 500,
       retryMaxMs: cfg.retryMaxMs ?? 30_000,
     };
+    this.external = cfg.externalSigner ?? null;
   }
 
   async connect(): Promise<void> {
@@ -58,13 +62,22 @@ export class SubstrateClient {
     });
     await this.api.isReady;
 
-    if (this.cfg.signerMnemonic) {
+    if (this.external) {
+      logger.info(
+        {
+          event: "peaq.substrate.externalSignerLoaded",
+          address: this.external.address,
+          cryptoType: this.external.cryptoType,
+        },
+        "Substrate external signer loaded (HSM/KMS path)",
+      );
+    } else if (this.cfg.signerMnemonic) {
       mnemonicSchema.parse(this.cfg.signerMnemonic);
       const keyring = new Keyring({ type: "sr25519", ss58Format: this.cfg.network.ss58Prefix });
       this.signer = keyring.addFromMnemonic(this.cfg.signerMnemonic);
       logger.info(
         { event: "peaq.substrate.signerLoaded", address: this.signer.address },
-        "Substrate signer loaded",
+        "Substrate signer loaded (mnemonic)",
       );
     }
 
@@ -93,12 +106,16 @@ export class SubstrateClient {
   }
 
   getSigner(): KeyringPair {
-    if (!this.signer) throw new Error("Substrate signer not loaded (set signerMnemonic)");
+    if (!this.signer) throw new Error("Substrate signer not loaded (set signerMnemonic or externalSigner)");
     return this.signer;
   }
 
   signerAddress(): string | null {
-    return this.signer?.address ?? null;
+    return this.external?.address ?? this.signer?.address ?? null;
+  }
+
+  hasSigner(): boolean {
+    return this.signer !== null || this.external !== null;
   }
 
   async health(): Promise<{ ok: boolean; chain?: string; finalized?: number; reason?: string }> {
@@ -117,13 +134,24 @@ export class SubstrateClient {
   async submitExtrinsic(
     extrinsic: SubmittableExtrinsic<"promise", ISubmittableResult>,
   ): Promise<ExtrinsicReceipt> {
+    if (!this.hasSigner()) {
+      throw new Error("Substrate signer not loaded (set signerMnemonic or externalSigner)");
+    }
     const start = Date.now();
+    const externalSigner = this.external;
+    const localPair = this.signer;
+    const signWith: Parameters<typeof extrinsic.signAndSend>[0] = externalSigner
+      ? externalSigner.address
+      : localPair!;
+    const signOpts = externalSigner
+      ? { signer: externalSigner.asPolkadotSigner() as never, nonce: -1 as const }
+      : { nonce: -1 as const };
     const outcome = await retryWithBackoff(
       () =>
         new Promise<ExtrinsicReceipt>((resolve, reject) => {
           let unsub: (() => void) | null = null;
           extrinsic
-            .signAndSend(this.getSigner(), { nonce: -1 }, (result) => {
+            .signAndSend(signWith, signOpts, (result) => {
               if (result.dispatchError) {
                 const decoded = this.decodeDispatchError(result.dispatchError);
                 if (unsub) unsub();
