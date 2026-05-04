@@ -1,5 +1,14 @@
 <p align="center">
-  <img src="docs/branding/axi-peaq-banner.png" alt="AXI x peaq" width="720">
+  <img src="docs/branding/axi-peaq-banner.png" alt="AXI x peaq" width="360">
+</p>
+
+<p align="center">
+  <a href="https://github.com/aximobility/peaq-integration/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/aximobility/peaq-integration/ci.yml?branch=main&label=CI&logo=github"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
+  <img alt="peaq" src="https://img.shields.io/badge/peaq-mainnet%20%2B%20agung-7B5BFF">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
+  <img alt="Node" src="https://img.shields.io/badge/node-%E2%89%A520-339933?logo=nodedotjs&logoColor=white">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-29%20passing-brightgreen">
 </p>
 
 # peaq-integration
