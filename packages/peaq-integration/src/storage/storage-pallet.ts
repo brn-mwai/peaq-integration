@@ -15,8 +15,27 @@ export interface StorageReceipt {
   durationMs: number;
 }
 
-const itemTypeSchema = z.string().min(1).max(64);
-const itemPayloadSchema = z.union([z.string(), z.instanceof(Uint8Array)]);
+// Per https://docs.peaq.xyz/peaqchain/build/advanced-operations/precompiles/storage:
+// peaqStorage layout is `64-byte key : 256-byte value`. Caller-side validation
+// stops obviously oversized inputs before they hit the runtime.
+export const PEAQ_STORAGE_KEY_MAX_BYTES = 64;
+export const PEAQ_STORAGE_VALUE_MAX_BYTES = 256;
+
+const itemTypeSchema = z
+  .string()
+  .min(1)
+  .refine((s) => new TextEncoder().encode(s).length <= PEAQ_STORAGE_KEY_MAX_BYTES, {
+    message: `itemType must be <= ${PEAQ_STORAGE_KEY_MAX_BYTES} UTF-8 bytes`,
+  });
+const itemPayloadSchema = z
+  .union([z.string(), z.instanceof(Uint8Array)])
+  .refine(
+    (v) => {
+      const bytes = v instanceof Uint8Array ? v.length : new TextEncoder().encode(v).length;
+      return bytes <= PEAQ_STORAGE_VALUE_MAX_BYTES;
+    },
+    {message: `payload must be <= ${PEAQ_STORAGE_VALUE_MAX_BYTES} bytes`},
+  );
 
 export class PeaqStorageClient {
   constructor(private readonly cfg: StorageClientConfig) {}
