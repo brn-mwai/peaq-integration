@@ -15,9 +15,6 @@ export interface StorageReceipt {
   durationMs: number;
 }
 
-// Per https://docs.peaq.xyz/peaqchain/build/advanced-operations/precompiles/storage:
-// peaqStorage layout is `64-byte key : 256-byte value`. Caller-side validation
-// stops obviously oversized inputs before they hit the runtime.
 export const PEAQ_STORAGE_KEY_MAX_BYTES = 64;
 export const PEAQ_STORAGE_VALUE_MAX_BYTES = 256;
 
