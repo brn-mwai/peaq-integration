@@ -124,8 +124,9 @@ Each addRole / addGroup / addPermission / assignment is a peaqRbac extrinsic. Th
 | Chain ID (EVM) | 3338 | 9990 |
 | Native currency | PEAQ | AGNG |
 | ParaID | 3338 | n/a |
-| Default WSS | `wss://peaq-rpc.publicnode.com` | `wss://wss-async.agung.peaq.network` |
-| Default HTTPS | `https://peaq-rpc.publicnode.com` | `https://peaq-agung.api.onfinality.io/public` |
+| Primary WSS | `wss://quicknode1.peaq.xyz` (1/2/3) | `wss://wss-async.agung.peaq.network` |
+| Primary HTTPS | `https://quicknode1.peaq.xyz` (1/2/3) | `https://peaq-agung.api.onfinality.io/public` |
+| Fallback | `wss://peaq-rpc.publicnode.com` / `https://peaq-rpc.publicnode.com` | -- |
 | Block explorer | https://peaq.subscan.io | https://agung-testnet.subscan.io |
 
 Endpoints are pulled from the official peaq docs ([docs.peaq.xyz/build/getting-started/connecting-to-peaq](https://docs.peaq.xyz/build/getting-started/connecting-to-peaq)). Override per-deploy via `PEAQ_WSS_URL` / `PEAQ_HTTPS_URL`.

@@ -150,8 +150,9 @@ The library's API is documented in [`packages/peaq-integration/README.md`](packa
 | EVM chain ID | **3338** | **9990** |
 | Native currency | PEAQ | AGNG |
 | Mainnet launch | 12 Nov 2024 | (testnet) |
-| Default WSS | `wss://peaq-rpc.publicnode.com` | `wss://wss-async.agung.peaq.network` |
-| Default HTTPS | `https://peaq-rpc.publicnode.com` | `https://peaq-agung.api.onfinality.io/public` |
+| Primary WSS | `wss://quicknode1.peaq.xyz` (1, 2, 3) | `wss://wss-async.agung.peaq.network` |
+| Primary HTTPS | `https://quicknode1.peaq.xyz` (1, 2, 3) | `https://peaq-agung.api.onfinality.io/public` |
+| Fallback | `wss://peaq-rpc.publicnode.com` / `https://peaq-rpc.publicnode.com` | -- |
 | Block explorer | https://peaq.subscan.io | https://agung-testnet.subscan.io |
 | Faucet | exchanges or treasury | Discord `#agung-faucet` |
 

@@ -125,7 +125,7 @@ pnpm peaq anchor submit \
   --via evm
 ```
 
-The library has built-in idempotency on `(workspace_id, anchor_date)`, so a retry won't double-submit.
+The CLI wraps each submit in an in-memory idempotency cache keyed by `(via, workspace_id, anchor_date)`, so a retry within the same CLI process is a no-op. Across process restarts the cache resets — for cross-process safety, integrate the library directly and pass a persistent `IdempotencyStore` (e.g. backed by Redis or SQLite).
 
 ### Onboard a new vehicle
 
@@ -185,7 +185,7 @@ Useful in scripts: `pnpm peaq health` returning 1 means the chain is unreachable
 ## Troubleshooting
 
 **`pnpm peaq status` hangs:**
-The default WSS endpoint is unreachable. Try `PEAQ_WSS_RPC=wss://wss-async.agung.peaq.network`.
+The default WSS endpoint is unreachable. Override with `PEAQ_WSS_URL=wss://quicknode1.peaq.xyz` (mainnet) or `PEAQ_WSS_URL=wss://wss-async.agung.peaq.network` (agung).
 
 **`anchor submit` fails with "balance too low":**
 Top up your signer wallet. The retry classifier short-circuits permanent errors instead of burning gas re-trying.

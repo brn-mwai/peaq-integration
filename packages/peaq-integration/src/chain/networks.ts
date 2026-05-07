@@ -27,19 +27,19 @@ export const PEAQ_MAINNET: PeaqNetworkConfig = {
     chainId: 3338,
     nativeCurrency: {name: "PEAQ", symbol: "PEAQ", decimals: 18},
     ss58Prefix: 42,
+    // peaq updated their RPCs in 2025-07; quicknode is now the primary, publicnode is the
+    // documented fallback. onfinality.io is deprecated and intentionally not listed here.
     endpoints: {
         httpsRpc: [
             "https://quicknode1.peaq.xyz",
             "https://quicknode2.peaq.xyz",
             "https://quicknode3.peaq.xyz",
-            "https://peaq.api.onfinality.io/public",
             "https://peaq-rpc.publicnode.com",
         ],
         wssRpc: [
             "wss://quicknode1.peaq.xyz",
             "wss://quicknode2.peaq.xyz",
             "wss://quicknode3.peaq.xyz",
-            "wss://peaq.api.onfinality.io/public-ws",
             "wss://peaq-rpc.publicnode.com",
         ],
         blockExplorer: [

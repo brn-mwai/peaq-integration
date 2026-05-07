@@ -1,7 +1,18 @@
 import { Command } from "commander";
 import kleur from "kleur";
-import { buildMerkleTree, verifyOnChain } from "@aximobility/peaq-integration";
+import {
+  buildMerkleTree,
+  IdempotencyCache,
+  InMemoryIdempotencyStore,
+  verifyOnChain,
+} from "@aximobility/peaq-integration";
 import { buildContext } from "../../lib/context.js";
+
+// Process-scoped idempotency cache so a re-run of `anchor submit` with the same
+// (workspaceId, anchorDate, via) inside one CLI invocation is a no-op. The cache
+// is in-memory only; for cross-process / cross-restart safety, callers integrating
+// the library directly should pass a persistent IdempotencyStore.
+const cliAnchorCache = new IdempotencyCache<unknown>(new InMemoryIdempotencyStore<unknown>());
 
 export function buildAnchorCommand(): Command {
   const cmd = new Command("anchor").description("Daily Merkle anchor: preview / submit / verify on-chain");
@@ -31,25 +42,36 @@ export function buildAnchorCommand(): Command {
       const text = await fs.readFile(opts.leaves, "utf8");
       const leafHashes = JSON.parse(text) as string[];
       const ctx = await buildContext({ needsSigner: opts.via !== "evm" });
+      const idempotencyKey = `anchor:${opts.via ?? "evm"}:${opts.workspaceId}:${opts.anchorDate}`;
       try {
         if (opts.via === "substrate") {
-          const r = await ctx.anchor.submitViaSubstrate({
-            workspaceId: opts.workspaceId,
-            anchorDate: opts.anchorDate,
-            leafHashes,
-          });
-          console.log(kleur.green(`✓ Anchor submitted via Substrate`));
+          const { receipt, cached } = await cliAnchorCache.getOrCompute(idempotencyKey, () =>
+            ctx.anchor.submitViaSubstrate({
+              workspaceId: opts.workspaceId,
+              anchorDate: opts.anchorDate,
+              leafHashes,
+            }),
+          );
+          const r = receipt as Awaited<ReturnType<typeof ctx.anchor.submitViaSubstrate>>;
+          console.log(
+            kleur.green(`✓ Anchor submitted via Substrate${cached ? " (idempotent cache hit)" : ""}`),
+          );
           console.log(`  txHash:       ${r.txHash}`);
           console.log(`  blockNumber:  ${r.blockNumber}`);
           console.log(`  itemType:     ${r.itemType}`);
           console.log(`  rootHex:      ${r.rootHex}`);
         } else {
-          const r = await ctx.anchor.submitViaEvm({
-            workspaceId: opts.workspaceId,
-            anchorDate: opts.anchorDate,
-            leafHashes,
-          });
-          console.log(kleur.green(`✓ Anchor submitted via EVM`));
+          const { receipt, cached } = await cliAnchorCache.getOrCompute(idempotencyKey, () =>
+            ctx.anchor.submitViaEvm({
+              workspaceId: opts.workspaceId,
+              anchorDate: opts.anchorDate,
+              leafHashes,
+            }),
+          );
+          const r = receipt as Awaited<ReturnType<typeof ctx.anchor.submitViaEvm>>;
+          console.log(
+            kleur.green(`✓ Anchor submitted via EVM${cached ? " (idempotent cache hit)" : ""}`),
+          );
           console.log(`  txHash:       ${r.txHash}`);
           console.log(`  toAddress:    ${r.toAddress}`);
           console.log(`  rootHex:      ${r.rootHex}`);

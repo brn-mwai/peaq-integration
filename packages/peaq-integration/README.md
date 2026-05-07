@@ -1,6 +1,6 @@
 # @aximobility/peaq-integration
 
-The library. Typed clients for peaq's pallets and EVM, plus the daily Merkle anchor service.
+The library. Typed clients for peaq's pallets and EVM, plus the Merkle anchor submitter (one-shot; the operator runs it on whatever schedule they want, e.g. a cron).
 
 The full repo lives in [`peaq-integration`](../..). The CLI that wraps this library is in [`apps/peaq-cli`](../../apps/peaq-cli).
 
@@ -172,9 +172,9 @@ import { PeaqStorageClient } from "@aximobility/peaq-integration";
 
 const storage = new PeaqStorageClient({ substrate });
 
-await storage.put({ type: "axi.profile", value: '{"foo":"bar"}' });
-const item = await storage.get({ owner: "5GrwvaEFyM...", type: "axi.profile" });
-await storage.update({ type: "axi.profile", value: '{"foo":"baz"}' });
+await storage.addItem("axi.profile", '{"foo":"bar"}');
+const item = await storage.getItem("5GrwvaEFyM...", "axi.profile");
+await storage.updateItem("axi.profile", '{"foo":"baz"}');
 ```
 
 ---
@@ -186,9 +186,9 @@ import { PeaqRbacClient } from "@aximobility/peaq-integration";
 
 const rbac = new PeaqRbacClient({ substrate });
 
-await rbac.addRole({ roleId: "operator", name: "Operator" });
-await rbac.assignRoleToUser({ roleId: "operator", userId: "5GrwvaEFyM..." });
-const roles = await rbac.fetchUserRoles("5GrwvaEFyM...");
+await rbac.addRole("operator", "Operator");
+await rbac.assignRoleToUser("operator", "5GrwvaEFyM...");
+await rbac.assignRoleToGroup("operator", "drivers-east");
 ```
 
 ---
@@ -203,18 +203,20 @@ PEAQ_SIGNER_MNEMONIC="word1 word2 ..."      # 12 or 24 words
 PEAQ_EVM_PRIVATE_KEY=0x...                  # 0x-prefixed 64-hex
 
 # Optional overrides:
-PEAQ_HTTPS_RPC=https://...
-PEAQ_WSS_RPC=wss://...
+PEAQ_HTTPS_URL=https://...
+PEAQ_WSS_URL=wss://...
 LOG_LEVEL=info                              # debug | info | warn | error
 ```
 
-Loading with `loadEnv()` will throw immediately if a required value is missing or malformed.
+The library validates env at import time. Reading the parsed result is a single import:
 
 ```ts
-import { loadEnv } from "@aximobility/peaq-integration";
+import { env } from "@aximobility/peaq-integration";
 
-const env = loadEnv();    // parsed + validated
+console.log(env.network);     // "agung" | "mainnet"
 ```
+
+If a required value is missing or malformed, the import throws with a precise field path.
 
 ---
 
@@ -262,16 +264,24 @@ new EvmClient({
 
 ## Idempotency
 
-If your service crashes mid-anchor and restarts, you don't want to submit the same anchor twice. The library has a built-in `idempotency` cache keyed by `(workspaceId, anchorDate)` — second submit is a no-op.
+If your service crashes mid-anchor and restarts, you don't want to submit the same anchor twice. The library ships an `IdempotencyCache` you can wrap around any submit call. The cache is in-memory by default; pass a custom `IdempotencyStore` (Redis, SQLite, etc.) for cross-process persistence.
 
 ```ts
-import { idempotencyCache } from "@aximobility/peaq-integration";
+import { IdempotencyCache } from "@aximobility/peaq-integration";
 
-await idempotencyCache.run(
+const cache = new IdempotencyCache<AnchorReceipt>();
+
+const { receipt, cached } = await cache.getOrCompute(
   `anchor:${workspaceId}:${anchorDate}`,
   async () => anchor.submitViaEvm({ workspaceId, anchorDate, leafHashes }),
 );
+
+if (cached) {
+  log.info({ event: "anchor.idempotent_hit" });
+}
 ```
+
+The CLI's `anchor submit` command does **not** wrap the submit in this cache today — if you re-run `anchor submit` for the same `(workspaceId, anchorDate)`, the second call will produce a second on-chain anchor. Wire `IdempotencyCache` around the call yourself if you need crash-safe retries.
 
 ---
 

@@ -1,7 +1,27 @@
+import {hexToU8a} from "@polkadot/util";
+import {decodeAddress} from "@polkadot/util-crypto";
 import {z} from "zod";
 
 const DID_PREFIX = "did:peaq:";
 const DID_BODY_REGEX = /^(0x[a-fA-F0-9]{40,64}|[1-9A-HJ-NP-Za-km-z]+)$/;
+
+/**
+ * Resolve a `did:peaq:...` string (or its body) to the on-chain account bytes
+ * that the peaq pallets expect (AccountId32 = 32 raw bytes).
+ *
+ * Accepts:
+ *   - `did:peaq:0x<hex>` (EVM-style hex extension)
+ *   - `did:peaq:<ss58-base58>` (canonical peaq DID method)
+ *   - bare `0x<hex>` body
+ *   - bare `<ss58-base58>` body
+ */
+export function didToAccount(didOrBody: string): Uint8Array {
+    const body = didOrBody.startsWith(DID_PREFIX) ? didOrBody.slice(DID_PREFIX.length) : didOrBody;
+    if (body.startsWith("0x")) {
+        return hexToU8a(body);
+    }
+    return decodeAddress(body);
+}
 
 export const peaqDidSchema = z
     .string()

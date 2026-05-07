@@ -2,7 +2,7 @@ import { hexToU8a, stringToU8a, u8aToHex } from "@polkadot/util";
 import { z } from "zod";
 import { logger } from "../logger.js";
 import type { SubstrateClient } from "../chain/substrate-client.js";
-import { peaqDidDocumentSchema, type PeaqDidDocument } from "./did-method.js";
+import { didToAccount, peaqDidDocumentSchema, type PeaqDidDocument } from "./did-method.js";
 
 export interface DidIssuerConfig {
   substrate: SubstrateClient;
@@ -30,7 +30,6 @@ export class PeaqDidIssuer {
   async addAttribute(input: z.input<typeof addAttributeInputSchema>): Promise<AddAttributeReceipt> {
     const parsed = addAttributeInputSchema.parse(input);
     const api = this.cfg.substrate.getApi();
-    const signer = this.cfg.substrate.getSigner();
 
     const valueBytes = parsed.value instanceof Uint8Array ? parsed.value : stringToU8a(parsed.value);
     const validity = parsed.validityDays ? blocksFromDays(parsed.validityDays) : null;
@@ -39,8 +38,12 @@ export class PeaqDidIssuer {
       throw new Error("peaqDid.addAttribute extrinsic not found on connected node");
     }
 
+    // Resolve the input DID to the on-chain account bytes the pallet expects.
+    // Supports both `did:peaq:0x<hex>` and `did:peaq:<ss58-base58>` forms.
+    const didAccount = didToAccount(parsed.did);
+
     const tx = api.tx.peaqDid.addAttribute(
-      signer.address,
+      didAccount,
       stringToU8a(parsed.name),
       valueBytes,
       validity,
@@ -77,9 +80,9 @@ export class PeaqDidIssuer {
       throw new Error("peaqDid.attributeStore not found on connected node");
     }
 
-    const did32 = hexToU8a(did);
+    const didAccount = didToAccount(did);
     const nameBytes = stringToU8a(name);
-    const result = await api.query.peaqDid.attributeStore(did32, nameBytes);
+    const result = await api.query.peaqDid.attributeStore(didAccount, nameBytes);
 
     if ((result as unknown as { isNone?: boolean }).isNone) {
       return { value: null, validityBlock: null, createdBlock: null };
