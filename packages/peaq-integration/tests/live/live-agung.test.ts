@@ -1,11 +1,11 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   EvmClient,
+  PEAQ_AGUNG,
   PeaqAnchorService,
   PeaqDidIssuer,
   PeaqStorageClient,
   SubstrateClient,
-  PEAQ_AGUNG,
   buildMerkleTree,
   formatPeaqDid,
   peaqDidDocumentSchema,

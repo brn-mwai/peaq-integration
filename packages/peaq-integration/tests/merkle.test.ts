@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  GENESIS_HASH,
   buildMerkleProof,
   buildMerkleTree,
   chainHash,
-  GENESIS_HASH,
   sha256Hex,
   verifyMerkleProof,
 } from "../src/anchor/merkle.js";
@@ -24,11 +24,14 @@ describe("merkle", () => {
     expect(tree.root).toBe(leaf);
   });
 
-  it("two-leaf root is sha256(a || b)", () => {
+  // interior nodes are domain-separated: sha256("01" || left || right)
+  const node = (l: string, r: string) => sha256Hex(`01${l}${r}`);
+
+  it("two-leaf root is sha256(0x01 || a || b)", () => {
     const a = sha256Hex("a");
     const b = sha256Hex("b");
     const tree = buildMerkleTree([a, b]);
-    expect(tree.root).toBe(sha256Hex(a + b));
+    expect(tree.root).toBe(node(a, b));
   });
 
   it("odd-leaf count duplicates the last leaf (Bitcoin-style)", () => {
@@ -36,9 +39,7 @@ describe("merkle", () => {
     const b = sha256Hex("b");
     const c = sha256Hex("c");
     const tree = buildMerkleTree([a, b, c]);
-    const ab = sha256Hex(a + b);
-    const cc = sha256Hex(c + c);
-    expect(tree.root).toBe(sha256Hex(ab + cc));
+    expect(tree.root).toBe(node(node(a, b), node(c, c)));
   });
 
   it("buildMerkleProof + verifyMerkleProof round-trip for every leaf", () => {

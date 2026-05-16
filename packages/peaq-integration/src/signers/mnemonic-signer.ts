@@ -3,7 +3,12 @@ import type { KeyringPair } from "@polkadot/keyring/types";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { z } from "zod";
-import type { CryptoType, ExternalSigner, PolkadotSignerLike, PolkadotSignerPayloadRaw } from "./types.js";
+import type {
+  CryptoType,
+  ExternalSigner,
+  PolkadotSignerLike,
+  PolkadotSignerPayloadRaw,
+} from "./types.js";
 
 // In-process mnemonic-backed signer. Used by SubstrateClient when callers
 // pass `signerMnemonic` directly. Wrapped behind ExternalSigner so the
@@ -37,7 +42,10 @@ export class MnemonicSigner implements ExternalSigner {
     mnemonicSchema.parse(cfg.mnemonic);
     await cryptoWaitReady();
     const cryptoType = cfg.cryptoType ?? "sr25519";
-    const keyring = new Keyring({ type: cryptoType, ...(cfg.ss58Prefix !== undefined ? { ss58Format: cfg.ss58Prefix } : {}) });
+    const keyring = new Keyring({
+      type: cryptoType,
+      ...(cfg.ss58Prefix !== undefined ? { ss58Format: cfg.ss58Prefix } : {}),
+    });
     const pair = keyring.addFromMnemonic(cfg.mnemonic);
     return new MnemonicSigner(pair, cryptoType);
   }
@@ -46,9 +54,7 @@ export class MnemonicSigner implements ExternalSigner {
     return {
       signRaw: async (payload: PolkadotSignerPayloadRaw) => {
         const data = typeof payload.data === "string" ? payload.data : payload.data;
-        const bytes = data.startsWith("0x")
-          ? hexToBytes(data)
-          : new TextEncoder().encode(data);
+        const bytes = data.startsWith("0x") ? hexToBytes(data) : new TextEncoder().encode(data);
         const signature = u8aToHex(this.pair.sign(bytes)) as `0x${string}`;
         return { id: 0, signature };
       },

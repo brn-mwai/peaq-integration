@@ -1,7 +1,7 @@
 import { hexToU8a, stringToU8a } from "@polkadot/util";
 import { z } from "zod";
-import { logger } from "../logger.js";
 import type { SubstrateClient } from "../chain/substrate-client.js";
+import { logger } from "../logger.js";
 
 export interface StorageClientConfig {
   substrate: SubstrateClient;
@@ -24,15 +24,13 @@ const itemTypeSchema = z
   .refine((s) => new TextEncoder().encode(s).length <= PEAQ_STORAGE_KEY_MAX_BYTES, {
     message: `itemType must be <= ${PEAQ_STORAGE_KEY_MAX_BYTES} UTF-8 bytes`,
   });
-const itemPayloadSchema = z
-  .union([z.string(), z.instanceof(Uint8Array)])
-  .refine(
-    (v) => {
-      const bytes = v instanceof Uint8Array ? v.length : new TextEncoder().encode(v).length;
-      return bytes <= PEAQ_STORAGE_VALUE_MAX_BYTES;
-    },
-    {message: `payload must be <= ${PEAQ_STORAGE_VALUE_MAX_BYTES} bytes`},
-  );
+const itemPayloadSchema = z.union([z.string(), z.instanceof(Uint8Array)]).refine(
+  (v) => {
+    const bytes = v instanceof Uint8Array ? v.length : new TextEncoder().encode(v).length;
+    return bytes <= PEAQ_STORAGE_VALUE_MAX_BYTES;
+  },
+  { message: `payload must be <= ${PEAQ_STORAGE_VALUE_MAX_BYTES} bytes` },
+);
 
 export class PeaqStorageClient {
   constructor(private readonly cfg: StorageClientConfig) {}
@@ -50,7 +48,11 @@ export class PeaqStorageClient {
     const tx = api.tx.peaqStorage.addItem(stringToU8a(validatedType), payloadBytes);
 
     logger.info(
-      { event: "peaq.storage.addItem.submitting", itemType: validatedType, bytes: payloadBytes.length },
+      {
+        event: "peaq.storage.addItem.submitting",
+        itemType: validatedType,
+        bytes: payloadBytes.length,
+      },
       "Submitting peaqStorage.addItem",
     );
 

@@ -5,9 +5,9 @@ import {
   PeaqDidResolver,
   PeaqRbacClient,
   PeaqStorageClient,
-  resolveNetwork,
   SubstrateClient,
   env,
+  resolveNetwork,
 } from "@aximobility/peaq-integration";
 
 export interface CliContext {
@@ -32,7 +32,9 @@ export async function buildContext(opts: { needsSigner?: boolean } = {}): Promis
   });
   await substrate.connect();
   if (opts.needsSigner && !env.PEAQ_SIGNER_MNEMONIC) {
-    throw new Error("PEAQ_SIGNER_MNEMONIC required for this command. Set it via env or Secrets Manager.");
+    throw new Error(
+      "PEAQ_SIGNER_MNEMONIC required for this command. Set it via env or Secrets Manager.",
+    );
   }
 
   const evm = new EvmClient({

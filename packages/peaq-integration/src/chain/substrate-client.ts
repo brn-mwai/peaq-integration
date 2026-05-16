@@ -18,6 +18,8 @@ export interface SubstrateClientConfig {
   retryMaxAttempts?: number;
   retryBaseMs?: number;
   retryMaxMs?: number;
+  /** Hard deadline for a single extrinsic submission. Default 180_000ms. */
+  extrinsicTimeoutMs?: number;
 }
 
 export interface ExtrinsicReceipt {
@@ -47,6 +49,7 @@ export class SubstrateClient {
       retryMaxAttempts: cfg.retryMaxAttempts ?? 5,
       retryBaseMs: cfg.retryBaseMs ?? 500,
       retryMaxMs: cfg.retryMaxMs ?? 30_000,
+      extrinsicTimeoutMs: cfg.extrinsicTimeoutMs ?? 180_000,
     };
     this.external = cfg.externalSigner ?? null;
   }
@@ -106,7 +109,8 @@ export class SubstrateClient {
   }
 
   getSigner(): KeyringPair {
-    if (!this.signer) throw new Error("Substrate signer not loaded (set signerMnemonic or externalSigner)");
+    if (!this.signer)
+      throw new Error("Substrate signer not loaded (set signerMnemonic or externalSigner)");
     return this.signer;
   }
 
@@ -146,16 +150,41 @@ export class SubstrateClient {
     const signOpts = externalSigner
       ? { signer: externalSigner.asPolkadotSigner() as never, nonce: -1 as const }
       : { nonce: -1 as const };
+    const timeoutMs = this.cfg.extrinsicTimeoutMs;
     const outcome = await retryWithBackoff(
       () =>
         new Promise<ExtrinsicReceipt>((resolve, reject) => {
           let unsub: (() => void) | null = null;
+          let settled = false;
+          // Single settle path: clears the deadline timer, drops the subscription,
+          // and runs resolve/reject exactly once. Guards against a hung node where
+          // the signAndSend callback never fires.
+          const finish = (run: () => void): void => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (unsub) unsub();
+            run();
+          };
+          // Deadline message intentionally avoids "timeout"/"connection" so the
+          // retry classifier treats it as permanent — a timed-out extrinsic may
+          // have landed, and a blind retry would double-submit. Idempotency +
+          // a fresh anchor run handle recovery instead.
+          const timer = setTimeout(() => {
+            finish(() =>
+              reject(
+                new Error(
+                  `Extrinsic submission deadline exceeded after ${timeoutMs}ms (no in-block status from the node)`,
+                ),
+              ),
+            );
+          }, timeoutMs);
+
           extrinsic
             .signAndSend(signWith, signOpts, (result) => {
               if (result.dispatchError) {
                 const decoded = this.decodeDispatchError(result.dispatchError);
-                if (unsub) unsub();
-                reject(new Error(`Dispatch error: ${decoded}`));
+                finish(() => reject(new Error(`Dispatch error: ${decoded}`)));
                 return;
               }
               if (result.status.isInBlock || result.status.isFinalized) {
@@ -167,25 +196,26 @@ export class SubstrateClient {
                   method: record.event.method,
                   data: record.event.data.toHuman(),
                 }));
-                if (unsub) unsub();
-                this.api!.rpc.chain
-                  .getHeader(blockHash)
+                this.api!.rpc.chain.getHeader(blockHash)
                   .then((header) => {
-                    resolve({
-                      txHash: extrinsic.hash.toHex(),
-                      blockHash,
-                      blockNumber: header.number.toNumber(),
-                      events,
-                      durationMs: Date.now() - start,
-                    });
+                    finish(() =>
+                      resolve({
+                        txHash: extrinsic.hash.toHex(),
+                        blockHash,
+                        blockNumber: header.number.toNumber(),
+                        events,
+                        durationMs: Date.now() - start,
+                      }),
+                    );
                   })
-                  .catch(reject);
+                  .catch((err) => finish(() => reject(err)));
               }
             })
             .then((u) => {
               unsub = u;
+              if (settled) unsub(); // deadline already fired before the subscription resolved
             })
-            .catch(reject);
+            .catch((err) => finish(() => reject(err)));
         }),
       {
         maxAttempts: this.cfg.retryMaxAttempts,

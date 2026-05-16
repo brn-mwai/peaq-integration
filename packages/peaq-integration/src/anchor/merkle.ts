@@ -8,6 +8,16 @@ export function sha256Hex(data: string | Buffer | Uint8Array): string {
 
 export const GENESIS_HASH = "0".repeat(64);
 
+// Domain-separation tag for interior nodes. Leaves are externally-computed payload
+// hashes (raw sha256); interior nodes are sha256(NODE_PREFIX || left || right). The
+// prefix means an interior node value can never be re-presented as a leaf without
+// finding a sha256 preimage — closes the classic Merkle second-preimage attack.
+const NODE_PREFIX = "01";
+
+function hashNode(left: string, right: string): string {
+  return sha256Hex(NODE_PREFIX + left + right);
+}
+
 export interface MerkleTree {
   root: string;
   leafHashes: string[];
@@ -31,7 +41,7 @@ export function buildMerkleTree(leafHashes: string[]): MerkleTree {
     for (let i = 0; i < current.length; i += 2) {
       const left = current[i]!;
       const right = current[i + 1] ?? left;
-      next.push(sha256Hex(left + right));
+      next.push(hashNode(left, right));
     }
     levels.push(next);
     current = next;
@@ -71,7 +81,7 @@ export function buildMerkleProof(tree: MerkleTree, leafIndex: number): MerklePro
 export function verifyMerkleProof(proof: MerkleProof): boolean {
   let acc = proof.leafHash;
   for (const { hash, side } of proof.siblings) {
-    acc = side === "left" ? sha256Hex(hash + acc) : sha256Hex(acc + hash);
+    acc = side === "left" ? hashNode(hash, acc) : hashNode(acc, hash);
   }
   return acc === proof.root;
 }

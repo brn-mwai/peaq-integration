@@ -17,9 +17,9 @@
 // Calibrate the gateway: agung public RPC is rate-limited ~10 req/s/IP per
 // peaq-network/canary docs. Bump VUs only after deploying a private RPC.
 
-import http from "k6/http";
 import { check, sleep } from "k6";
-import { Trend, Counter, Rate } from "k6/metrics";
+import http from "k6/http";
+import { Counter, Rate, Trend } from "k6/metrics";
 
 const RPC = __ENV.PEAQ_RPC_HTTP || "https://peaq-agung.api.onfinality.io/public";
 const EXPECTED_CHAIN_ID = Number(__ENV.CHAIN_ID || 9990);
@@ -113,7 +113,7 @@ export default function () {
 
 export function handleSummary(data) {
   const summary = {
-    "stdout": JSON.stringify(
+    stdout: JSON.stringify(
       {
         rpc: RPC,
         expectedChainId: EXPECTED_CHAIN_ID,

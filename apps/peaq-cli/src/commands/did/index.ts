@@ -1,10 +1,12 @@
+import { peaqDidDocumentSchema } from "@aximobility/peaq-integration";
 import { Command } from "commander";
 import kleur from "kleur";
-import { peaqDidDocumentSchema } from "@aximobility/peaq-integration";
 import { buildContext } from "../../lib/context.js";
 
 export function buildDidCommand(): Command {
-  const cmd = new Command("did").description("peaq DID operations: create / read / update / remove / resolve");
+  const cmd = new Command("did").description(
+    "peaq DID operations: create / read / update / remove / resolve",
+  );
 
   cmd
     .command("add-attribute")
@@ -22,7 +24,7 @@ export function buildDidCommand(): Command {
           value: opts.value,
           ...(opts.validityDays ? { validityDays: Number.parseInt(opts.validityDays, 10) } : {}),
         });
-        console.log(kleur.green(`✓ peaqDid.addAttribute submitted`));
+        console.log(kleur.green("✓ peaqDid.addAttribute submitted"));
         console.log(`  txHash:       ${r.txHash}`);
         console.log(`  blockHash:    ${r.blockHash}`);
         console.log(`  blockNumber:  ${r.blockNumber}`);
@@ -62,7 +64,7 @@ export function buildDidCommand(): Command {
       const ctx = await buildContext({ needsSigner: true });
       try {
         const r = await ctx.did.issuer.writeDocument(did, document);
-        console.log(kleur.green(`✓ DID document written`));
+        console.log(kleur.green("✓ DID document written"));
         console.log(`  txHash:       ${r.txHash}`);
         console.log(`  blockNumber:  ${r.blockNumber}`);
       } finally {

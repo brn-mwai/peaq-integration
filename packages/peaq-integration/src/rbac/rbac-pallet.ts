@@ -1,7 +1,7 @@
 import { hexToU8a, stringToU8a } from "@polkadot/util";
 import { z } from "zod";
-import { logger } from "../logger.js";
 import type { SubstrateClient } from "../chain/substrate-client.js";
+import { logger } from "../logger.js";
 
 export interface RbacClientConfig {
   substrate: SubstrateClient;
@@ -23,7 +23,10 @@ export class PeaqRbacClient {
   constructor(private readonly cfg: RbacClientConfig) {}
 
   async addRole(roleId: string, name: string): Promise<RbacReceipt> {
-    return this.submit("peaqRbac", "addRole", [hexToU8a(idSchema.parse(roleId)), stringToU8a(nameSchema.parse(name))]);
+    return this.submit("peaqRbac", "addRole", [
+      hexToU8a(idSchema.parse(roleId)),
+      stringToU8a(nameSchema.parse(name)),
+    ]);
   }
 
   async assignRoleToUser(roleId: string, userId: string): Promise<RbacReceipt> {

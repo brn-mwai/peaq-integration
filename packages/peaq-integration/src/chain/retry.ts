@@ -12,7 +12,8 @@ export type RetryOutcome<T> =
 
 const DEFAULT_RETRYABLE = (err: unknown): boolean => {
   const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
-  if (msg.includes("timeout") || msg.includes("econnreset") || msg.includes("enetunreach")) return true;
+  if (msg.includes("timeout") || msg.includes("econnreset") || msg.includes("enetunreach"))
+    return true;
   if (msg.includes("rate limit") || msg.includes("too many requests")) return true;
   if (msg.includes("disconnected") || msg.includes("connection")) return true;
   if (msg.includes("priority is too low") || msg.includes("invalid transaction")) return false;

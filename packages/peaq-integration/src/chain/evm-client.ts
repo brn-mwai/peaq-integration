@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, type Hash, type Hex } from "viem";
+import { http, type Hash, type Hex, createPublicClient, createWalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { logger } from "../logger.js";
@@ -35,12 +35,19 @@ export class EvmClient {
       retryMaxMs: cfg.retryMaxMs ?? 30_000,
     };
     this.chain = viemChain(cfg.network);
-    this.publicClient = createPublicClient({ chain: this.chain, transport: http(this.cfg.httpsUrl) });
+    this.publicClient = createPublicClient({
+      chain: this.chain,
+      transport: http(this.cfg.httpsUrl),
+    });
 
     if (cfg.privateKey && cfg.privateKey !== "0x") {
       privateKeySchema.parse(cfg.privateKey);
       const account = privateKeyToAccount(cfg.privateKey);
-      this.walletClient = createWalletClient({ account, chain: this.chain, transport: http(this.cfg.httpsUrl) });
+      this.walletClient = createWalletClient({
+        account,
+        chain: this.chain,
+        transport: http(this.cfg.httpsUrl),
+      });
       logger.info(
         { event: "peaq.evm.signerLoaded", address: account.address },
         "EVM signer loaded",
@@ -123,6 +130,7 @@ export class EvmClient {
     blockNumber: bigint;
     status: "success" | "reverted";
     inputData: Hex;
+    from: `0x${string}`;
   } | null> {
     try {
       const [receipt, tx] = await Promise.all([
@@ -133,6 +141,7 @@ export class EvmClient {
         blockNumber: receipt.blockNumber,
         status: receipt.status,
         inputData: tx.input,
+        from: tx.from,
       };
     } catch {
       return null;

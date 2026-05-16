@@ -14,7 +14,7 @@ export function buildStorageCommand(): Command {
       const ctx = await buildContext({ needsSigner: true });
       try {
         const r = await ctx.storage.addItem(opts.type, opts.value);
-        console.log(kleur.green(`✓ peaqStorage.addItem submitted`));
+        console.log(kleur.green("✓ peaqStorage.addItem submitted"));
         console.log(`  txHash:       ${r.txHash}`);
         console.log(`  blockNumber:  ${r.blockNumber}`);
         console.log(`  itemType:     ${r.itemType}`);
@@ -46,7 +46,7 @@ export function buildStorageCommand(): Command {
       try {
         const r = await ctx.storage.getItem(owner, type);
         if (!r.value) {
-          console.log(kleur.gray(`(no item)`));
+          console.log(kleur.gray("(no item)"));
         } else {
           console.log(`  value (hex):  ${r.value}`);
         }

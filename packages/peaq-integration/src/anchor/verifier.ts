@@ -28,6 +28,12 @@ export interface OnChainVerificationInput {
   evm: EvmClient;
   txHash: Hash;
   expectedRootHexNo0x: string;
+  /**
+   * The address that should have sent the anchor tx (the AXI anchor wallet).
+   * STRONGLY recommended: without it, verification only proves "some tx carries
+   * this root", not that AXI anchored it — anyone can submit identical calldata.
+   */
+  expectedFrom?: `0x${string}`;
 }
 
 export type OnChainVerificationResult =
@@ -43,13 +49,22 @@ export async function verifyOnChain(
   const receipt = await input.evm.getReceipt(input.txHash);
   if (!receipt) return { valid: false, reason: "Transaction not found" };
   if (receipt.status !== "success") {
-    return { valid: false, reason: `Transaction reverted`, blockNumber: receipt.blockNumber };
+    return { valid: false, reason: "Transaction reverted", blockNumber: receipt.blockNumber };
   }
-  const calldata = receipt.inputData.startsWith("0x") ? receipt.inputData.slice(2) : receipt.inputData;
+  const calldata = receipt.inputData.startsWith("0x")
+    ? receipt.inputData.slice(2)
+    : receipt.inputData;
   if (calldata.toLowerCase() !== expectedRoot) {
     return {
       valid: false,
       reason: `Calldata != expected root (got ${calldata.slice(0, 16)}…)`,
+      blockNumber: receipt.blockNumber,
+    };
+  }
+  if (input.expectedFrom && receipt.from.toLowerCase() !== input.expectedFrom.toLowerCase()) {
+    return {
+      valid: false,
+      reason: `Anchored by ${receipt.from}, expected ${input.expectedFrom}`,
       blockNumber: receipt.blockNumber,
     };
   }

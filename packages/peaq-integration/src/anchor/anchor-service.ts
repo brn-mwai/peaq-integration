@@ -1,9 +1,13 @@
-import { z } from "zod";
 import type { Hash, Hex } from "viem";
-import { logger } from "../logger.js";
+import { z } from "zod";
 import type { EvmClient } from "../chain/evm-client.js";
 import type { SubstrateClient } from "../chain/substrate-client.js";
+import { type IdempotencyCache, makeAnchorIdempotencyKey } from "../idempotency.js";
+import { logger } from "../logger.js";
 import { buildMerkleTree } from "./merkle.js";
+
+/** peaqStorage.addItem caps item_type at 64 bytes (docs.peaq.xyz, checked 2026-05-16). */
+export const PEAQ_STORAGE_ITEM_TYPE_MAX_BYTES = 64;
 
 export interface AnchorRequest {
   workspaceId: string;
@@ -29,16 +33,30 @@ export interface SubstrateAnchorReceipt {
 }
 
 const anchorRequestSchema = z.object({
-  workspaceId: z.string().min(1).max(64),
+  // Capped at 32 so the composed Substrate itemType stays inside the 64-byte
+  // peaqStorage limit (prefix + "." + workspaceId + "." + yyyy-mm-dd).
+  workspaceId: z.string().min(1).max(32),
   anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   leafHashes: z.array(z.string().regex(/^[0-9a-f]{64}$/)).min(1),
 });
+
+type ParsedAnchorRequest = z.infer<typeof anchorRequestSchema>;
 
 export interface AnchorServiceConfig {
   evm?: EvmClient;
   substrate?: SubstrateClient;
   evmToAddress?: `0x${string}`;
   substrateItemPrefix?: string;
+  /**
+   * Optional idempotency caches. When supplied, a re-fired anchor for the same
+   * (workspaceId, anchorDate) returns the cached receipt instead of submitting
+   * a second transaction. Strongly recommended for cron-driven callers — a
+   * retried or double-fired run otherwise lands a duplicate anchor.
+   */
+  idempotency?: {
+    evm?: IdempotencyCache<EvmAnchorReceipt>;
+    substrate?: IdempotencyCache<SubstrateAnchorReceipt>;
+  };
 }
 
 export class PeaqAnchorService {
@@ -47,9 +65,33 @@ export class PeaqAnchorService {
   async submitViaEvm(request: AnchorRequest): Promise<EvmAnchorReceipt> {
     if (!this.cfg.evm) throw new Error("EVM client not configured");
     const parsed = anchorRequestSchema.parse(request);
+    const run = (): Promise<EvmAnchorReceipt> => this.doSubmitViaEvm(parsed);
+
+    const cache = this.cfg.idempotency?.evm;
+    if (!cache) return run();
+    const key = `${makeAnchorIdempotencyKey(parsed.workspaceId, parsed.anchorDate)}.evm`;
+    const { receipt } = await cache.getOrCompute(key, run);
+    return receipt;
+  }
+
+  async submitViaSubstrate(request: AnchorRequest): Promise<SubstrateAnchorReceipt> {
+    if (!this.cfg.substrate) throw new Error("Substrate client not configured");
+    const parsed = anchorRequestSchema.parse(request);
+    const run = (): Promise<SubstrateAnchorReceipt> => this.doSubmitViaSubstrate(parsed);
+
+    const cache = this.cfg.idempotency?.substrate;
+    if (!cache) return run();
+    const key = `${makeAnchorIdempotencyKey(parsed.workspaceId, parsed.anchorDate)}.substrate`;
+    const { receipt } = await cache.getOrCompute(key, run);
+    return receipt;
+  }
+
+  private async doSubmitViaEvm(parsed: ParsedAnchorRequest): Promise<EvmAnchorReceipt> {
+    const evm = this.cfg.evm!;
     const tree = buildMerkleTree(parsed.leafHashes);
     const data = `0x${tree.root}` as Hex;
-    const to = (this.cfg.evmToAddress ?? "0x000000000000000000000000000000000000dEaD") as `0x${string}`;
+    const to = (this.cfg.evmToAddress ??
+      "0x000000000000000000000000000000000000dEaD") as `0x${string}`;
 
     logger.info(
       {
@@ -63,7 +105,7 @@ export class PeaqAnchorService {
       "Submitting Merkle anchor via EVM",
     );
 
-    const txResult = await this.cfg.evm.sendCalldata({ to, data });
+    const txResult = await evm.sendCalldata({ to, data });
     return {
       txHash: txResult.txHash,
       rootHex: tree.root,
@@ -73,13 +115,20 @@ export class PeaqAnchorService {
     };
   }
 
-  async submitViaSubstrate(request: AnchorRequest): Promise<SubstrateAnchorReceipt> {
-    if (!this.cfg.substrate) throw new Error("Substrate client not configured");
-    const parsed = anchorRequestSchema.parse(request);
+  private async doSubmitViaSubstrate(parsed: ParsedAnchorRequest): Promise<SubstrateAnchorReceipt> {
+    const substrate = this.cfg.substrate!;
     const tree = buildMerkleTree(parsed.leafHashes);
     const itemType = `${this.cfg.substrateItemPrefix ?? "axi.anchor"}.${parsed.workspaceId}.${parsed.anchorDate}`;
 
-    const api = this.cfg.substrate.getApi();
+    const itemTypeBytes = Buffer.byteLength(itemType, "utf8");
+    if (itemTypeBytes > PEAQ_STORAGE_ITEM_TYPE_MAX_BYTES) {
+      throw new Error(
+        `Substrate anchor itemType is ${itemTypeBytes} bytes; peaqStorage.addItem caps ` +
+          `item_type at ${PEAQ_STORAGE_ITEM_TYPE_MAX_BYTES} bytes. Shorten substrateItemPrefix or workspaceId.`,
+      );
+    }
+
+    const api = substrate.getApi();
     if (!api.tx.peaqStorage?.addItem) {
       throw new Error("peaqStorage.addItem not found on connected node");
     }
@@ -97,7 +146,7 @@ export class PeaqAnchorService {
       "Submitting Merkle anchor via Substrate peaqStorage.addItem",
     );
 
-    const receipt = await this.cfg.substrate.submitExtrinsic(tx);
+    const receipt = await substrate.submitExtrinsic(tx);
     return {
       txHash: receipt.txHash,
       blockHash: receipt.blockHash,

@@ -73,7 +73,10 @@ export class IdempotencyCache<T> {
     this.staleAfterMs = opts.staleAfterMs ?? DEFAULT_STALE_MS;
   }
 
-  async getOrCompute(rawKey: string, fn: () => Promise<T>): Promise<{ receipt: T; cached: boolean }> {
+  async getOrCompute(
+    rawKey: string,
+    fn: () => Promise<T>,
+  ): Promise<{ receipt: T; cached: boolean }> {
     const key = idempotencyKeySchema.parse(rawKey);
 
     const existing = await this.store.get(key);

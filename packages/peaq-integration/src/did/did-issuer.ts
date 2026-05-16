@@ -1,8 +1,9 @@
+import type { ApiPromise } from "@polkadot/api";
 import { hexToU8a, stringToU8a, u8aToHex } from "@polkadot/util";
 import { z } from "zod";
-import { logger } from "../logger.js";
 import type { SubstrateClient } from "../chain/substrate-client.js";
-import { didToAccount, peaqDidDocumentSchema, type PeaqDidDocument } from "./did-method.js";
+import { logger } from "../logger.js";
+import { type PeaqDidDocument, didToAccount, peaqDidDocumentSchema } from "./did-method.js";
 
 export interface DidIssuerConfig {
   substrate: SubstrateClient;
@@ -31,8 +32,9 @@ export class PeaqDidIssuer {
     const parsed = addAttributeInputSchema.parse(input);
     const api = this.cfg.substrate.getApi();
 
-    const valueBytes = parsed.value instanceof Uint8Array ? parsed.value : stringToU8a(parsed.value);
-    const validity = parsed.validityDays ? blocksFromDays(parsed.validityDays) : null;
+    const valueBytes =
+      parsed.value instanceof Uint8Array ? parsed.value : stringToU8a(parsed.value);
+    const validity = parsed.validityDays ? blocksFromDays(api, parsed.validityDays) : null;
 
     if (!api.tx.peaqDid?.addAttribute) {
       throw new Error("peaqDid.addAttribute extrinsic not found on connected node");
@@ -70,7 +72,10 @@ export class PeaqDidIssuer {
     };
   }
 
-  async readAttribute(did: string, name: string): Promise<{
+  async readAttribute(
+    did: string,
+    name: string,
+  ): Promise<{
     value: string | null;
     validityBlock: number | null;
     createdBlock: number | null;
@@ -88,9 +93,15 @@ export class PeaqDidIssuer {
       return { value: null, validityBlock: null, createdBlock: null };
     }
 
-    const unwrapped = (result as unknown as {
-      unwrap: () => { value: { toHex: () => string }; validity: { toNumber: () => number }; created: { toNumber: () => number } };
-    }).unwrap();
+    const unwrapped = (
+      result as unknown as {
+        unwrap: () => {
+          value: { toHex: () => string };
+          validity: { toNumber: () => number };
+          created: { toNumber: () => number };
+        };
+      }
+    ).unwrap();
     return {
       value: unwrapped.value.toHex(),
       validityBlock: unwrapped.validity.toNumber(),
@@ -114,9 +125,14 @@ export class PeaqDidIssuer {
   }
 }
 
-function blocksFromDays(days: number): number {
-  // peaq target block time is 12s per substrate parachain default. 7200 blocks/day.
-  return days * 7200;
+function blocksFromDays(api: ApiPromise, days: number): number {
+  // Derive block time from the connected chain instead of hardcoding it.
+  // Substrate runtimes set timestamp.MinimumPeriod = slotDuration / 2, so the
+  // block interval is minimumPeriod * 2. Fall back to 12s if the constant is absent.
+  const minPeriod = api.consts.timestamp?.minimumPeriod as { toNumber?: () => number } | undefined;
+  const minPeriodMs = typeof minPeriod?.toNumber === "function" ? minPeriod.toNumber() : 0;
+  const blockTimeMs = minPeriodMs > 0 ? minPeriodMs * 2 : 12_000;
+  return Math.max(1, Math.round((days * 86_400_000) / blockTimeMs));
 }
 
 export { u8aToHex };

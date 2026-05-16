@@ -3,7 +3,9 @@ import kleur from "kleur";
 import { buildContext } from "../../lib/context.js";
 
 export function buildHealthCommand(): Command {
-  const cmd = new Command("health").description("Probe substrate + EVM endpoints, exit 0 only if healthy");
+  const cmd = new Command("health").description(
+    "Probe substrate + EVM endpoints, exit 0 only if healthy",
+  );
 
   cmd.action(async () => {
     const ctx = await buildContext();

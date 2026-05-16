@@ -54,9 +54,7 @@ async function loadAwsKms(): Promise<AwsKmsModule> {
     return mod;
   } catch (err) {
     throw new Error(
-      "KmsEd25519Signer requires @aws-sdk/client-kms as a peer dependency. " +
-        "Install with: pnpm add @aws-sdk/client-kms. Underlying error: " +
-        (err as Error).message,
+      `KmsEd25519Signer requires @aws-sdk/client-kms as a peer dependency. Install with: pnpm add @aws-sdk/client-kms. Underlying error: ${(err as Error).message}`,
     );
   }
 }
@@ -68,7 +66,9 @@ function spkiToEd25519Raw(spki: Uint8Array): Uint8Array {
     0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
   ]);
   if (spki.length !== ED25519_SPKI_PREFIX.length + 32) {
-    throw new Error(`Unexpected SPKI length: ${spki.length}, expected ${ED25519_SPKI_PREFIX.length + 32}`);
+    throw new Error(
+      `Unexpected SPKI length: ${spki.length}, expected ${ED25519_SPKI_PREFIX.length + 32}`,
+    );
   }
   for (let i = 0; i < ED25519_SPKI_PREFIX.length; i++) {
     if (spki[i] !== ED25519_SPKI_PREFIX[i]) {
@@ -86,7 +86,12 @@ export class KmsEd25519Signer implements ExternalSigner {
   private readonly kms: KmsClientLike;
   private readonly aws: AwsKmsModule;
 
-  private constructor(cfg: KmsEd25519Config, kms: KmsClientLike, aws: AwsKmsModule, publicKeyRaw: Uint8Array) {
+  private constructor(
+    cfg: KmsEd25519Config,
+    kms: KmsClientLike,
+    aws: AwsKmsModule,
+    publicKeyRaw: Uint8Array,
+  ) {
     this.cfg = cfg;
     this.kms = kms;
     this.aws = aws;
@@ -112,9 +117,7 @@ export class KmsEd25519Signer implements ExternalSigner {
     return {
       signRaw: async (payload: PolkadotSignerPayloadRaw) => {
         const data = typeof payload.data === "string" ? payload.data : payload.data;
-        const message = data.startsWith("0x")
-          ? hexToU8a(data)
-          : new TextEncoder().encode(data);
+        const message = data.startsWith("0x") ? hexToU8a(data) : new TextEncoder().encode(data);
         const out = await this.kms.send(
           new this.aws.SignCommand({
             KeyId: this.cfg.keyId,

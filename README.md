@@ -122,7 +122,7 @@ pnpm peaq anchor verify-on-chain \
 
 ### Need test tokens?
 
-Join the peaq Discord, find `#agung-faucet`, run `!send <your-address>`. The faucet drips 1 AGNG per request per hour. Mainnet PEAQ comes from exchanges or your treasury wallet.
+Use the Agung faucet form on [docs.peaq.xyz](https://docs.peaq.xyz/peaqchain/build/getting-started/get-test-tokens) — it sends 3 AGNG per wallet per day to an EVM or Substrate address. Mainnet PEAQ comes from exchanges or your treasury wallet.
 
 ---
 
@@ -152,7 +152,7 @@ The library's API is documented in [`packages/peaq-integration/README.md`](packa
 | Mainnet launch | 12 Nov 2024 | (testnet) |
 | Primary WSS | `wss://quicknode1.peaq.xyz` (1, 2, 3) | `wss://wss-async.agung.peaq.network` |
 | Primary HTTPS | `https://quicknode1.peaq.xyz` (1, 2, 3) | `https://peaq-agung.api.onfinality.io/public` |
-| Fallback | `wss://peaq-rpc.publicnode.com` / `https://peaq-rpc.publicnode.com` | -- |
+| Fallback | publicnode + onfinality (`peaq.api.onfinality.io`) | -- |
 | Block explorer | https://peaq.subscan.io | https://agung-testnet.subscan.io |
 | Faucet | exchanges or treasury | Discord `#agung-faucet` |
 
@@ -171,7 +171,7 @@ We follow a small set of rules consistently. They're more important than any sin
 | Retry with exponential backoff and jitter | RPC endpoints hiccup. Permanent errors (insufficient balance, malformed tx) skip retry. |
 | Zod validation at every public boundary | One Zod failure beats a confusing crash deep inside `@polkadot/api`. |
 | pino with secret redaction | Mnemonics, private keys, bearer tokens never reach disk or stdout. |
-| No `console.log` anywhere | Biome rule. CI fails the PR. |
+| No `console.log` in the library | Biome rule. The `peaq-cli` app is exempt — a CLI prints to stdout by design. |
 | No `as any` anywhere | Biome rule. CI fails the PR. |
 | Distroless runtime image | No shell, no package manager. Smaller attack surface. |
 | GitHub OIDC for releases | No long-lived AWS or registry credentials in CI. |
@@ -193,7 +193,7 @@ flowchart TB
   log -.censor.-> ER
 ```
 
-- **Keys never live in env files in production.** They sit in AWS Secrets Manager or HashiCorp Vault, get decrypted via a KMS-backed key, and zero out from memory after `connect()`.
+- **Production signing keys live in AWS KMS, not env files.** The `KmsEd25519Signer` path keeps the private key inside KMS — it is never imported into Node memory; only the public key and signatures cross the boundary. The mnemonic / `PEAQ_EVM_PRIVATE_KEY` env-var path is for local development and self-managed deployments; that key material stays resident for the client's lifetime, so prefer the KMS signer in production.
 - **Substrate and EVM use separate keys.** Compromising one path does not compromise the other.
 - **Every public function validates inputs with Zod** before issuing an extrinsic.
 - **The retry loop short-circuits on permanent errors.** No gas burned on transactions that won't succeed regardless of retry.

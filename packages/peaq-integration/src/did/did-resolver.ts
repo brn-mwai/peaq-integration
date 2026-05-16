@@ -3,7 +3,7 @@ import { decodeAddress } from "@polkadot/util-crypto";
 import { z } from "zod";
 import type { SubstrateClient } from "../chain/substrate-client.js";
 import type { PeaqDidIssuer } from "./did-issuer.js";
-import { formatPeaqDid, peaqDidSchema, type PeaqDidDocument } from "./did-method.js";
+import { type PeaqDidDocument, formatPeaqDid, peaqDidSchema } from "./did-method.js";
 
 export interface DidResolverConfig {
   substrate: SubstrateClient;
@@ -28,7 +28,9 @@ export class PeaqDidResolver {
     const doc = await this.cfg.issuer.readDocument(did);
     const attr = await this.cfg.issuer.readAttribute(did, "doc");
     return {
-      didResolutionMetadata: { contentType: doc ? "application/did+ld+json" : "application/did+json" },
+      didResolutionMetadata: {
+        contentType: doc ? "application/did+ld+json" : "application/did+json",
+      },
       didDocument: doc,
       didDocumentMetadata: {
         onChainCreatedBlock: attr.createdBlock,

@@ -11,9 +11,19 @@
       "complexity": { "noUselessTypeConstraint": "error" },
       "correctness": { "noUnusedVariables": "error", "noUnusedImports": "error" },
       "suspicious": { "noExplicitAny": "error", "noConsoleLog": "warn" },
-      "style": { "useImportType": "error", "useExportType": "error" }
+      "style": {
+        "useImportType": "error",
+        "useExportType": "error",
+        "noNonNullAssertion": "off"
+      }
     }
   },
+  "overrides": [
+    {
+      "include": ["apps/peaq-cli/**"],
+      "linter": { "rules": { "suspicious": { "noConsoleLog": "off" } } }
+    }
+  ],
   "javascript": {
     "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" }
   }

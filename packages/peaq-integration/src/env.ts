@@ -9,7 +9,7 @@ const envSchema = z.object({
   PEAQ_WSS_URL: z.string().url().optional(),
   PEAQ_HTTPS_URL: z.string().url().optional(),
 
-  PEAQ_SIGNER_MNEMONIC: z.string().min(0).optional(),
+  PEAQ_SIGNER_MNEMONIC: z.string().min(1).optional(),
   PEAQ_EVM_PRIVATE_KEY: z
     .string()
     .regex(/^0x[a-fA-F0-9]{64}$/)

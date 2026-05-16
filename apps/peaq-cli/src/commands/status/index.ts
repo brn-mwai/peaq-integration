@@ -1,6 +1,6 @@
+import { env, resolveNetwork } from "@aximobility/peaq-integration";
 import { Command } from "commander";
 import kleur from "kleur";
-import { resolveNetwork, env } from "@aximobility/peaq-integration";
 import { buildContext } from "../../lib/context.js";
 
 export function buildStatusCommand(): Command {
@@ -8,7 +8,7 @@ export function buildStatusCommand(): Command {
 
   cmd.action(async () => {
     const network = resolveNetwork(env.PEAQ_NETWORK);
-    console.log(kleur.bold().cyan(`\npeaq integration status\n`));
+    console.log(kleur.bold().cyan("\npeaq integration status\n"));
     console.log(`  network:           ${network.name}`);
     console.log(`  chain id (EVM):    ${network.chainId}`);
     console.log(`  native currency:   ${network.nativeCurrency.symbol}`);
@@ -22,11 +22,17 @@ export function buildStatusCommand(): Command {
     try {
       const subHealth = await ctx.substrate.health();
       const evmHealth = await ctx.evm.health();
-      console.log(kleur.bold(`\nLive checks`));
-      console.log(`  substrate:         ${subHealth.ok ? kleur.green("up") : kleur.red("down")}${subHealth.chain ? ` (${subHealth.chain}, finalized=${subHealth.finalized})` : ""}`);
-      if (!subHealth.ok && subHealth.reason) console.log(kleur.red(`    reason: ${subHealth.reason}`));
-      console.log(`  evm:               ${evmHealth.ok ? kleur.green("up") : kleur.red("down")}${evmHealth.chainId ? ` (chain=${evmHealth.chainId}, block=${evmHealth.blockNumber})` : ""}`);
-      if (!evmHealth.ok && evmHealth.reason) console.log(kleur.red(`    reason: ${evmHealth.reason}`));
+      console.log(kleur.bold("\nLive checks"));
+      console.log(
+        `  substrate:         ${subHealth.ok ? kleur.green("up") : kleur.red("down")}${subHealth.chain ? ` (${subHealth.chain}, finalized=${subHealth.finalized})` : ""}`,
+      );
+      if (!subHealth.ok && subHealth.reason)
+        console.log(kleur.red(`    reason: ${subHealth.reason}`));
+      console.log(
+        `  evm:               ${evmHealth.ok ? kleur.green("up") : kleur.red("down")}${evmHealth.chainId ? ` (chain=${evmHealth.chainId}, block=${evmHealth.blockNumber})` : ""}`,
+      );
+      if (!evmHealth.ok && evmHealth.reason)
+        console.log(kleur.red(`    reason: ${evmHealth.reason}`));
       console.log(`  substrate signer:  ${ctx.substrate.signerAddress() ?? kleur.gray("none")}`);
       console.log(`  evm signer:        ${ctx.evm.signerAddress() ?? kleur.gray("none")}`);
     } finally {
