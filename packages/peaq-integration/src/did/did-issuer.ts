@@ -18,10 +18,35 @@ export interface AddAttributeReceipt {
   durationMs: number;
 }
 
+/**
+ * peaqDid pallet BoundedVec caps. Both `name` and `value` are BoundedVec in
+ * peaq-pallet-did; an extrinsic exceeding either reverts on-chain. Verified
+ * from peaq-pallet-did source (peaq-docs.md).
+ */
+export const PEAQ_DID_ATTRIBUTE_NAME_MAX_BYTES = 64;
+export const PEAQ_DID_ATTRIBUTE_VALUE_MAX_BYTES = 2560;
+
+const utf8ByteLength = (s: string): number => new TextEncoder().encode(s).length;
+
 const addAttributeInputSchema = z.object({
   did: z.string().min(1),
-  name: z.string().min(1).max(64),
-  value: z.union([z.string(), z.instanceof(Uint8Array)]),
+  // Measured in UTF-8 bytes, not string length — peaqDid caps the BoundedVec.
+  name: z
+    .string()
+    .min(1)
+    .refine((s) => utf8ByteLength(s) <= PEAQ_DID_ATTRIBUTE_NAME_MAX_BYTES, {
+      message: `attribute name must be <= ${PEAQ_DID_ATTRIBUTE_NAME_MAX_BYTES} UTF-8 bytes (peaqDid MAX_NAME_SIZE)`,
+    }),
+  value: z
+    .union([z.string(), z.instanceof(Uint8Array)])
+    .refine(
+      (v) =>
+        (v instanceof Uint8Array ? v.length : utf8ByteLength(v)) <=
+        PEAQ_DID_ATTRIBUTE_VALUE_MAX_BYTES,
+      {
+        message: `attribute value must be <= ${PEAQ_DID_ATTRIBUTE_VALUE_MAX_BYTES} bytes (peaqDid MAX_VALUE_SIZE) — a DID document larger than this must be stored off-chain with only its hash written on-chain`,
+      },
+    ),
   validityDays: z.number().int().positive().optional(),
 });
 
