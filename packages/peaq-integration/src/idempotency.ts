@@ -13,7 +13,7 @@ import { z } from "zod";
 // retried invocations within the TTL return the same receipt.
 //
 // **Caller responsibility:** generate idempotency keys deterministically from
-// the operation's INPUT identity (e.g., `anchor.${workspaceId}.${anchorDate}`),
+// the operation's INPUT identity (e.g., `anchor.${workspaceId}.${anchorHour}`),
 // not from the timestamp. A non-deterministic key defeats the cache.
 
 export interface IdempotencyEntry<T> {
@@ -132,8 +132,8 @@ export class IdempotencyCache<T> {
   }
 }
 
-export function makeAnchorIdempotencyKey(workspaceId: string, anchorDate: string): string {
-  return `anchor.${workspaceId}.${anchorDate}`;
+export function makeAnchorIdempotencyKey(workspaceId: string, anchorHour: string): string {
+  return `anchor.${workspaceId}.${anchorHour}`;
 }
 
 export function makeDidIdempotencyKey(did: string, attributeName: string): string {

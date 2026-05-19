@@ -11,7 +11,8 @@ export const PEAQ_STORAGE_ITEM_TYPE_MAX_BYTES = 64;
 
 export interface AnchorRequest {
   workspaceId: string;
-  anchorDate: string;
+  /** ISO hour bucket `YYYY-MM-DDTHH` — the trust layer anchors a Merkle root hourly. */
+  anchorHour: string;
   leafHashes: string[];
 }
 
@@ -34,9 +35,11 @@ export interface SubstrateAnchorReceipt {
 
 const anchorRequestSchema = z.object({
   // Capped at 32 so the composed Substrate itemType stays inside the 64-byte
-  // peaqStorage limit (prefix + "." + workspaceId + "." + yyyy-mm-dd).
+  // peaqStorage limit (prefix + "." + workspaceId + "." + yyyy-mm-ddTHH <= 57 bytes).
   workspaceId: z.string().min(1).max(32),
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // Hourly anchor bucket: yyyy-mm-ddTHH (e.g. "2026-05-19T14"). Hour precision —
+  // the trust layer commits one Merkle root per hour, not per day.
+  anchorHour: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}$/),
   leafHashes: z.array(z.string().regex(/^[0-9a-f]{64}$/)).min(1),
 });
 
@@ -49,7 +52,7 @@ export interface AnchorServiceConfig {
   substrateItemPrefix?: string;
   /**
    * Optional idempotency caches. When supplied, a re-fired anchor for the same
-   * (workspaceId, anchorDate) returns the cached receipt instead of submitting
+   * (workspaceId, anchorHour) returns the cached receipt instead of submitting
    * a second transaction. Strongly recommended for cron-driven callers — a
    * retried or double-fired run otherwise lands a duplicate anchor.
    */
@@ -69,7 +72,7 @@ export class PeaqAnchorService {
 
     const cache = this.cfg.idempotency?.evm;
     if (!cache) return run();
-    const key = `${makeAnchorIdempotencyKey(parsed.workspaceId, parsed.anchorDate)}.evm`;
+    const key = `${makeAnchorIdempotencyKey(parsed.workspaceId, parsed.anchorHour)}.evm`;
     const { receipt } = await cache.getOrCompute(key, run);
     return receipt;
   }
@@ -81,7 +84,7 @@ export class PeaqAnchorService {
 
     const cache = this.cfg.idempotency?.substrate;
     if (!cache) return run();
-    const key = `${makeAnchorIdempotencyKey(parsed.workspaceId, parsed.anchorDate)}.substrate`;
+    const key = `${makeAnchorIdempotencyKey(parsed.workspaceId, parsed.anchorHour)}.substrate`;
     const { receipt } = await cache.getOrCompute(key, run);
     return receipt;
   }
@@ -97,7 +100,7 @@ export class PeaqAnchorService {
       {
         event: "peaq.anchor.evm.submitting",
         workspaceId: parsed.workspaceId,
-        anchorDate: parsed.anchorDate,
+        anchorHour: parsed.anchorHour,
         leafCount: parsed.leafHashes.length,
         root: tree.root,
         to,
@@ -118,7 +121,7 @@ export class PeaqAnchorService {
   private async doSubmitViaSubstrate(parsed: ParsedAnchorRequest): Promise<SubstrateAnchorReceipt> {
     const substrate = this.cfg.substrate!;
     const tree = buildMerkleTree(parsed.leafHashes);
-    const itemType = `${this.cfg.substrateItemPrefix ?? "axi.anchor"}.${parsed.workspaceId}.${parsed.anchorDate}`;
+    const itemType = `${this.cfg.substrateItemPrefix ?? "axi.anchor"}.${parsed.workspaceId}.${parsed.anchorHour}`;
 
     const itemTypeBytes = Buffer.byteLength(itemType, "utf8");
     if (itemTypeBytes > PEAQ_STORAGE_ITEM_TYPE_MAX_BYTES) {
@@ -138,7 +141,7 @@ export class PeaqAnchorService {
       {
         event: "peaq.anchor.substrate.submitting",
         workspaceId: parsed.workspaceId,
-        anchorDate: parsed.anchorDate,
+        anchorHour: parsed.anchorHour,
         leafCount: parsed.leafHashes.length,
         itemType,
         root: tree.root,

@@ -9,14 +9,14 @@ import kleur from "kleur";
 import { buildContext } from "../../lib/context.js";
 
 // Process-scoped idempotency cache so a re-run of `anchor submit` with the same
-// (workspaceId, anchorDate, via) inside one CLI invocation is a no-op. The cache
+// (workspaceId, anchorHour, via) inside one CLI invocation is a no-op. The cache
 // is in-memory only; for cross-process / cross-restart safety, callers integrating
 // the library directly should pass a persistent IdempotencyStore.
 const cliAnchorCache = new IdempotencyCache<unknown>(new InMemoryIdempotencyStore<unknown>());
 
 export function buildAnchorCommand(): Command {
   const cmd = new Command("anchor").description(
-    "Daily Merkle anchor: preview / submit / verify on-chain",
+    "Hourly Merkle anchor: preview / submit / verify on-chain",
   );
 
   cmd
@@ -38,22 +38,25 @@ export function buildAnchorCommand(): Command {
       "Submit a Merkle anchor via EVM (calldata = root) or Substrate (peaqStorage.addItem)",
     )
     .requiredOption("--workspace-id <id>", "Workspace identifier (label only)")
-    .requiredOption("--anchor-date <yyyy-mm-dd>", "Date the anchor covers")
+    .requiredOption(
+      "--anchor-hour <yyyy-mm-ddTHH>",
+      "Hour bucket the anchor covers, e.g. 2026-05-19T14",
+    )
     .requiredOption("--leaves <path>", "Path to JSON file of leaf hashes")
     .option("--via <kind>", "evm | substrate", "evm")
     .action(
-      async (opts: { workspaceId: string; anchorDate: string; leaves: string; via?: string }) => {
+      async (opts: { workspaceId: string; anchorHour: string; leaves: string; via?: string }) => {
         const fs = await import("node:fs/promises");
         const text = await fs.readFile(opts.leaves, "utf8");
         const leafHashes = JSON.parse(text) as string[];
         const ctx = await buildContext({ needsSigner: opts.via !== "evm" });
-        const idempotencyKey = `anchor:${opts.via ?? "evm"}:${opts.workspaceId}:${opts.anchorDate}`;
+        const idempotencyKey = `anchor:${opts.via ?? "evm"}:${opts.workspaceId}:${opts.anchorHour}`;
         try {
           if (opts.via === "substrate") {
             const { receipt, cached } = await cliAnchorCache.getOrCompute(idempotencyKey, () =>
               ctx.anchor.submitViaSubstrate({
                 workspaceId: opts.workspaceId,
-                anchorDate: opts.anchorDate,
+                anchorHour: opts.anchorHour,
                 leafHashes,
               }),
             );
@@ -71,7 +74,7 @@ export function buildAnchorCommand(): Command {
             const { receipt, cached } = await cliAnchorCache.getOrCompute(idempotencyKey, () =>
               ctx.anchor.submitViaEvm({
                 workspaceId: opts.workspaceId,
-                anchorDate: opts.anchorDate,
+                anchorHour: opts.anchorHour,
                 leafHashes,
               }),
             );

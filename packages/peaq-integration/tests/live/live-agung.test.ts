@@ -39,11 +39,11 @@ describe.skipIf(!LIVE)("peaq agung live integration", () => {
     it("submits a Merkle anchor and the receipt is fetchable", async () => {
       const leaves = ["alpha", "beta", "gamma", "delta"].map((s) => sha256Hex(s));
       const tree = buildMerkleTree(leaves);
-      const today = new Date().toISOString().slice(0, 10);
+      const anchorHour = new Date().toISOString().slice(0, 13);
 
       const receipt = await service.submitViaEvm({
         workspaceId: "live-test",
-        anchorDate: today,
+        anchorHour,
         leafHashes: leaves,
       });
 
